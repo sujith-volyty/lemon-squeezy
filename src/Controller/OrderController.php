@@ -3,12 +3,14 @@
 namespace App\Controller;
 
 use App\Entity\Product;
+use App\Entity\User;
 use App\Store\ShoppingCart;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class OrderController extends AbstractController
@@ -57,34 +59,55 @@ class OrderController extends AbstractController
     public function checkout(
         #[Target('lemonSqueezyClient')]
         HttpClientInterface $lsClient,
-        ShoppingCart $cart
+        ShoppingCart $cart,
+        #[CurrentUser] ?User $user,
     ): Response
     {
-        $lsCheckoutUrl = $this->createLsCheckoutUrl($lsClient, $cart);
+        $lsCheckoutUrl = $this->createLsCheckoutUrl($lsClient, $cart, $user);
         return $this->redirect($lsCheckoutUrl);
     }
 
-    private function createLsCheckoutUrl(HttpClientInterface $lsClient, ShoppingCart $cart): string
+    private function createLsCheckoutUrl(HttpClientInterface $lsClient, ShoppingCart $cart, ?User $user): string
     {
         if ($cart->isEmpty()) {
             throw new \LogicException('Nothing to checkout!');
+        }
+
+        $products = $cart->getProducts();
+        $variantId = $products[0]->getLsVariantId();
+        $quantity = $cart->getProductQuantity($products[0]);
+
+        $attributes = [
+            'checkout_data' => [
+                'variant_quantities' => [
+                    [
+                        'variant_id' => (int) $variantId,
+                        'quantity' => $quantity,
+                    ],
+                ],
+            ],
+        ];
+        if ($user) {
+            $attributes['checkout_data']['email'] = $user->getEmail();
+            $attributes['checkout_data']['name'] = $user->getFirstName();
         }
 
         $response = $lsClient->request(Request::METHOD_POST, 'checkouts', [
             'json' => [
                 'data' => [
                     'type' => 'checkouts',
+                    'attributes' => $attributes,
                     'relationships' => [
                         'store' => [
                             'data' => [
                                 'type' => 'stores',
-                                'id' => '181186',
+                                'id' => $this->getParameter('env(LEMON_SQUEEZY_STORE_ID)'),
                             ],
                         ],
                         'variant' => [
                             'data' => [
                                 'type' => 'variants',
-                                'id' => '804220',
+                                'id' => $variantId,
                             ],
                         ],
                     ],
