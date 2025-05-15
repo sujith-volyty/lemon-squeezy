@@ -19,14 +19,14 @@ class AppFixtures extends Fixture
 
         ProductFactory::new()->create([
             'name' => 'Classic Lemonade',
-            'price' => 99,
+            'price' => 5000,
             'description' => 'A timeless, thirst-quenching beverage that blends the bright, zesty flavor of lemons with just the right amount of sweetness. Simple yet satisfying.',
             'slug' => 'classic-lemonade',
             'lsVariantId' => '804220',
         ]);
         ProductFactory::new()->create([
             'name' => 'Watermelon Lemonade',
-            'price' => 199,
+            'price' => 10000,
             'description' => 'A vibrant, thirst-quenching blend of sweet, juicy watermelon and zesty lemon. This refreshing drink captures the essence of summer in every sip',
             'slug' => 'watermelon-lemonade',
             'lsVariantId' => '804355',

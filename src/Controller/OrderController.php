@@ -75,21 +75,32 @@ class OrderController extends AbstractController
 
         $products = $cart->getProducts();
         $variantId = $products[0]->getLsVariantId();
-        $quantity = $cart->getProductQuantity($products[0]);
 
-        $attributes = [
-            'checkout_data' => [
-                'variant_quantities' => [
-                    [
-                        'variant_id' => (int) $variantId,
-                        'quantity' => $quantity,
-                    ],
-                ],
-            ],
-        ];
+        $attributes = [];
         if ($user) {
             $attributes['checkout_data']['email'] = $user->getEmail();
             $attributes['checkout_data']['name'] = $user->getFirstName();
+        }
+        if (count($products) === 1) {
+            $attributes['checkout_data']['variant_quantities'] = [
+                [
+                    'variant_id' => (int) $variantId,
+                    'quantity' => $cart->getProductQuantity($products[0]),
+                ],
+            ];
+        } else {
+            $attributes['custom_price'] = $cart->getTotal();
+            $description = '';
+            foreach ($products as $product) {
+                $description .= $product->getName()
+                    . ' for $' . number_format($product->getPrice() / 100, 2)
+                    . ' x ' . $cart->getProductQuantity($product)
+                    . '<br>';
+            }
+            $attributes['product_options'] = [
+                'name' => sprintf('E-lemonades'),
+                'description' => $description,
+            ];
         }
 
         $response = $lsClient->request(Request::METHOD_POST, 'checkouts', [
