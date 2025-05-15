@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "710c7435ae4d9b6ac8e0384adde68aba",
+    "content-hash": "d9006ebe9463d7f068ff9b68d16745db",
     "packages": [
         {
             "name": "composer/semver",
@@ -4209,7 +4209,7 @@
             ],
             "authors": [
                 {
-                    "name": "K\u00e9vin Dunglas",
+                    "name": "Kévin Dunglas",
                     "email": "dunglas@gmail.com"
                 },
                 {
@@ -6160,7 +6160,7 @@
             ],
             "authors": [
                 {
-                    "name": "Fran\u00e7ois Zaninotto"
+                    "name": "François Zaninotto"
                 }
             ],
             "description": "Faker is a PHP library that generates fake data for you.",
@@ -6583,6 +6583,5 @@
         "ext-iconv": "*"
     },
     "platform-dev": {},
-    "platform-overrides": {},
     "plugin-api-version": "2.6.0"
 }
