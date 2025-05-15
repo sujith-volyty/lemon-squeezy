@@ -10,6 +10,7 @@ use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -67,6 +68,25 @@ class OrderController extends AbstractController
         return $this->redirect($lsCheckoutUrl);
     }
 
+    #[Route('/checkout/success', name: 'app_order_success')]
+    public function success(
+        Request $request,
+        ShoppingCart $cart,
+    ): Response
+    {
+        $referer = $request->headers->get('referer');
+        $lsStoreUrl = 'https://jooseshop.lemonsqueezy.com';
+        if (!str_starts_with($referer, $lsStoreUrl)) {
+            return $this->redirectToRoute('app_homepage');
+        }
+        if ($cart->isEmpty()) {
+            return $this->redirectToRoute('app_homepage');
+        }
+        $cart->clear();
+        $this->addFlash('success', 'Thanks for your order!');
+        return $this->redirectToRoute('app_homepage');
+    }
+
     private function createLsCheckoutUrl(HttpClientInterface $lsClient, ShoppingCart $cart, ?User $user): string
     {
         if ($cart->isEmpty()) {
@@ -102,6 +122,8 @@ class OrderController extends AbstractController
                 'description' => $description,
             ];
         }
+
+        $attributes['product_options']['redirect_url'] = $this->generateUrl('app_order_success', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
         $response = $lsClient->request(Request::METHOD_POST, 'checkouts', [
             'json' => [
