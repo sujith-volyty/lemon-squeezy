@@ -5,9 +5,11 @@ namespace App\Controller;
 use App\Entity\Product;
 use App\Store\ShoppingCart;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class OrderController extends AbstractController
 {
@@ -49,5 +51,50 @@ class OrderController extends AbstractController
         $this->addFlash('success', 'Cart cleared!');
 
         return $this->redirectToRoute('app_order_cart');
+    }
+
+    #[Route('/checkout', name: 'app_order_checkout')]
+    public function checkout(
+        #[Target('lemonSqueezyClient')]
+        HttpClientInterface $lsClient,
+        ShoppingCart $cart
+    ): Response
+    {
+        $lsCheckoutUrl = $this->createLsCheckoutUrl($lsClient, $cart);
+        return $this->redirect($lsCheckoutUrl);
+    }
+
+    private function createLsCheckoutUrl(HttpClientInterface $lsClient, ShoppingCart $cart): string
+    {
+        if ($cart->isEmpty()) {
+            throw new \LogicException('Nothing to checkout!');
+        }
+
+        $response = $lsClient->request(Request::METHOD_POST, 'checkouts', [
+            'json' => [
+                'data' => [
+                    'type' => 'checkouts',
+                    'relationships' => [
+                        'store' => [
+                            'data' => [
+                                'type' => 'stores',
+                                'id' => '181186',
+                            ],
+                        ],
+                        'variant' => [
+                            'data' => [
+                                'type' => 'variants',
+                                'id' => '804220',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        // dd($response->getContent(false));
+        
+        $lsCheckout = $response->toArray();
+        return $lsCheckout['data']['attributes']['url'];
     }
 }
