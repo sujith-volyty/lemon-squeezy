@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Product;
 use App\Entity\User;
+use App\Store\LemonSqueezyApi;
 use App\Store\ShoppingCart;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Target;
@@ -58,13 +59,11 @@ class OrderController extends AbstractController
 
     #[Route('/checkout', name: 'app_order_checkout')]
     public function checkout(
-        #[Target('lemonSqueezyClient')]
-        HttpClientInterface $lsClient,
-        ShoppingCart $cart,
         #[CurrentUser] ?User $user,
+        LemonSqueezyApi $lsApi,
     ): Response
     {
-        $lsCheckoutUrl = $this->createLsCheckoutUrl($lsClient, $cart, $user);
+        $lsCheckoutUrl = $lsApi->createCheckoutUrl($user);
         return $this->redirect($lsCheckoutUrl);
     }
 
@@ -72,10 +71,11 @@ class OrderController extends AbstractController
     public function success(
         Request $request,
         ShoppingCart $cart,
+        LemonSqueezyApi $lsApi,
     ): Response
     {
         $referer = $request->headers->get('referer');
-        $lsStoreUrl = 'https://jooseshop.lemonsqueezy.com';
+        $lsStoreUrl = $lsApi->retrieveStoreUrl();
         if (!str_starts_with($referer, $lsStoreUrl)) {
             return $this->redirectToRoute('app_homepage');
         }
@@ -85,72 +85,5 @@ class OrderController extends AbstractController
         $cart->clear();
         $this->addFlash('success', 'Thanks for your order!');
         return $this->redirectToRoute('app_homepage');
-    }
-
-    private function createLsCheckoutUrl(HttpClientInterface $lsClient, ShoppingCart $cart, ?User $user): string
-    {
-        if ($cart->isEmpty()) {
-            throw new \LogicException('Nothing to checkout!');
-        }
-
-        $products = $cart->getProducts();
-        $variantId = $products[0]->getLsVariantId();
-
-        $attributes = [];
-        if ($user) {
-            $attributes['checkout_data']['email'] = $user->getEmail();
-            $attributes['checkout_data']['name'] = $user->getFirstName();
-        }
-        if (count($products) === 1) {
-            $attributes['checkout_data']['variant_quantities'] = [
-                [
-                    'variant_id' => (int) $variantId,
-                    'quantity' => $cart->getProductQuantity($products[0]),
-                ],
-            ];
-        } else {
-            $attributes['custom_price'] = $cart->getTotal();
-            $description = '';
-            foreach ($products as $product) {
-                $description .= $product->getName()
-                    . ' for $' . number_format($product->getPrice() / 100, 2)
-                    . ' x ' . $cart->getProductQuantity($product)
-                    . '<br>';
-            }
-            $attributes['product_options'] = [
-                'name' => sprintf('E-lemonades'),
-                'description' => $description,
-            ];
-        }
-
-        $attributes['product_options']['redirect_url'] = $this->generateUrl('app_order_success', [], UrlGeneratorInterface::ABSOLUTE_URL);
-
-        $response = $lsClient->request(Request::METHOD_POST, 'checkouts', [
-            'json' => [
-                'data' => [
-                    'type' => 'checkouts',
-                    'attributes' => $attributes,
-                    'relationships' => [
-                        'store' => [
-                            'data' => [
-                                'type' => 'stores',
-                                'id' => $this->getParameter('env(LEMON_SQUEEZY_STORE_ID)'),
-                            ],
-                        ],
-                        'variant' => [
-                            'data' => [
-                                'type' => 'variants',
-                                'id' => $variantId,
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-        ]);
-
-        // dd($response->getContent(false));
-        
-        $lsCheckout = $response->toArray();
-        return $lsCheckout['data']['attributes']['url'];
     }
 }
